@@ -11,7 +11,7 @@ library(dplyr)
 library(magrittr)
 
 # Read in phyloseq object
-psdata <- readRDS("/home/jamiesop/MB599_project/phyloseq/mb599data.Rds")
+psdata <- readRDS("./mb599data.Rds")
 
 # To view each dataframe within the phyloseq object
 # View(as.data.frame(otu_table(psdata)))
