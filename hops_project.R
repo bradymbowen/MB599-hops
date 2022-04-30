@@ -57,6 +57,31 @@ ps_wk_1_2 <- ps %>% subset_samples(Week %in% c("1", "2"))
 
 
 
+
+
+# random forest
+
+sample_names <- row.names(otu_table(ps))
+
+library(randomForest)
+
+rf_psnew <- psmelt(ps) %>% 
+  dplyr::select(OTU, Sample, Abundance, Group, DXN, X8PN) %>% 
+  pivot_wider(names_from = OTU, values_from = Abundance) %>% 
+  arrange(factor(Sample, levels = sample_names))
+
+
+## I have not tested random forest but this code might work...
+
+rftreat <- randomForest(Group ~ ., data = rf_psnew, ntree = 100)
+
+
+
+
+
+
+
+
 # Agglomerate to the family level
 ps_family <- psdata %>% tax_glom(taxrank = "Family")
 
