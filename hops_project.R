@@ -82,15 +82,120 @@ rftreat <- randomForest(Group ~ ., data = rf_psnew, ntree = 100)
 
 
 
-# Agglomerate to the family level
-ps_family <- psdata %>% tax_glom(taxrank = "Family")
+# spearmans correlation agglomerated to Family level 
+
+psfam <- pstreat %>% 
+  tax_glom(taxrank = "Family") %>% 
+  psmelt()
+
+corrfam <- psfam %>%   
+  rename_with(tolower) %>% 
+  dplyr::rename('asv' = 'otu') %>% 
+  select(asv, sample, abundance, participant.id, week, family, ixn, x8pn, dxn) %>% 
+  pivot_longer(c(ixn, x8pn, dxn), names_to = 'metab', values_to = 'conc')
+
+cyb <- corrfam %>%
+  rename_with(tolower) %>%
+  group_by(metab, family, week) %>%
+  nest() %>%
+  #mutate(spr = map_dbl(data, sprmfun))
+  mutate(spr = map(data, function(x) cor.test(x$abundance, x$conc, method = 'spearman'))) %>%
+  mutate(rho = map_dbl(spr, function(x) x$estimate)) %>% 
+  mutate(pvalue = map_dbl(spr, function(x) x$p.value)) %>% 
+  ungroup() %>%
+  mutate(padj = p.adjust(pvalue, method = "BH"))
+
+cyb_adj <- cyb %>% 
+  filter(padj <= 0.05)
+## family = Enterobacteriaceae with 8PN [rho = 0.877, adj pvalue = 0.0193]
+
+# fitler by week = 3 (which is actually week 4)
+
+cyb3 <- cyb %>%
+  filter(week == 3)
+
+ggplot(cyb3, aes(x = family, y = metabolite, fill = rho)) +
+  geom_raster() +
+  coord_fixed() +
+  scale_fill_gradient(high = 'green', low = 'red')+ #, limits = c(-1,1)) +
+  cowplot::theme_cowplot() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab('Family') +
+  ylab('Metabolite') +
+  ggtitle('Family vs Metabolite')
 
 
-# Spearman's Correlation of relative abundance at each time point (total = 5) 
 
 
-# Spearman's correlation between change in relative abundance and change in concentration of metabolite
+# Spearman's correlation agglomerated to genus level
 
+psgen <- pstreat %>% 
+  tax_glom(taxrank = "Genus") %>% 
+  psmelt()
+
+corrgen <- psgen %>% 
+  rename('ASV' = 'OTU') %>% 
+  rename_with(tolower) %>% 
+  select(asv, sample, abundance, participant.id, week, ixn, x8pn, dxn, genus, family) %>% 
+  pivot_longer(c(ixn, x8pn, dxn), names_to = 'metab', values_to = 'conc')
+
+cbg <- corrgen %>% 
+  group_by(metab, genus, week) %>% 
+  nest() %>% 
+  mutate(spr = map(data, function(x) cor.test(x$abundance, x$conc, method = 'spearman'))) %>% 
+  mutate(rho = map_dbl(spr, function(x) x$estimate)) %>% 
+  mutate(pvalue = map_dbl(spr, function(x) x$p.value)) %>% 
+  mutate(padj = p.adjust(pvalue, method = 'BH'))
+
+cbg2 <- cbg %>% 
+  filter(padj <= 0.05 & rho >= 0.7)
+
+cbg3 <- cbg %>% 
+  filter(rho > 0)
+
+# filtering for week 3
+
+cbg3 <- cbg %>% 
+  filter(week == 3)
+
+ggplot(cbg3, aes(x = genus, y = metab, fill = rho)) +
+  geom_raster() +
+  coord_fixed() +
+  scale_fill_gradient(high = 'green', low = 'red', limits = c(-1,1)) +
+  cowplot::theme_cowplot() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab('Genus') +
+  ylab('Metabolite') +
+  ggtitle('Genus vs Metabolite')
+
+
+
+
+
+# Figure: Metabolite levels by week
+
+sample_data(psfam) 
+
+newfam <- as.data.frame(otu_table(psfam)) %>%
+  cbind(as.data.frame(sample_data(psfam))) %>%
+  pivot_longer(starts_with('ASV'), names_to = 'ASV', values_to = "relab") %>% 
+  pivot_longer(c("DXN", "X8PN", "IXN"), names_to = "metabolites", values_to = "int") %>%
+  rename_with(tolower) %>%
+  #rename_with(~gsub('.', '_', .x)) %>%
+  mutate(wkc = ifelse(week == 1, 0,
+                      ifelse(week == 2, 2,
+                             ifelse(week == 3, 4,
+                                    ifelse(week == 4, 6, 8))))) %>%
+  modify_at('wkc', factor)
+# group_by(Week, metabolites, ASV) %>%
+# nest() %>%
+# mutate(pval = map_dbl(data, function(x) cor.test(x$relab, x$int)$p.value))
+
+metab <- ggplot(newfam, aes(x = wkc, y = int, color = participant.id)) +
+  geom_point() +
+  geom_path(aes(group = participant.id)) +
+  facet_wrap(~metabolites, scales = 'free_y') +
+  labs(x = Week)
 
 
 
