@@ -204,6 +204,21 @@ metab <- ggplot(newfam, aes(x = wkc, y = int, color = participant.id)) +
 
 
 
+# PCoA analysis
+
+
+
+# Extract relevant sub-data
+pswk3 <- ps %>% subset_samples(Week == '3')
+# Calculate eigenvalues by Bray Curtis distances
+ord3 <- ordinate(pswk3, method = 'PCoA', distance = 'bray')
+# Plot PCoA
+pcoawk3 <- plot_ordination(pswk3, ord3, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 4')
+
+
 
 
 
