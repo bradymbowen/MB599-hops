@@ -209,22 +209,89 @@ metab <- ggplot(newfam, aes(x = wkc, y = int, color = participant.id)) +
 
 
 # Extract relevant sub-data
+pswk1 <- ps %>% subset_samples(Week == '1')
+pswk2 <- ps %>% subset_samples(Week == '2')
 pswk3 <- ps %>% subset_samples(Week == '3')
+pswk3C <- pswk3 %>% subset_samples(Group == 'control')
+pswk3T <- pswk3 %>% subset_samples(Group == 'treatment')
+pswk4 <- ps %>% subset_samples(Week == '4')
+pswk5 <- ps %>% subset_samples(Week == '5')
+
 # Calculate eigenvalues by Bray Curtis distances
+ord1 <- ordinate(pswk1, method = 'PCoA', distance = 'bray')
+ord2 <- ordinate(pswk2, method = 'PCoA', distance = 'bray')
 ord3 <- ordinate(pswk3, method = 'PCoA', distance = 'bray')
+ord3C <- ordinate(pswk3C, method = 'PCoA', distance = 'bray')
+ord3T <- ordinate(pswk3T, method = 'PCoA', distance = 'bray')
+ord4 <- ordinate(pswk4, method = 'PCoA', distance = 'bray')
+ord5 <- ordinate(pswk5, method = 'PCoA', distance = 'bray')
+
 # Plot PCoA
+pcoawk1 <- plot_ordination(pswk1, ord1, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 0')
+
+pcoawk2 <- plot_ordination(pswk2, ord2, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 2')
+
 pcoawk3 <- plot_ordination(pswk3, ord3, color = 'Group') +
   geom_point(aes(),
              size = 3) +
   ggtitle('Beta Diversity of Fecal Samples in Week 4')
 
+pcoawk3C <- plot_ordination(pswk3C, ord3C, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 4, Control Subsample')
 
+pcoawk3T <- plot_ordination(pswk3T, ord3T, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 4, Treatment Subsample')
 
+pcoawk4 <- plot_ordination(pswk4, ord4, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 6')
 
+pcoawk5 <- plot_ordination(pswk5, ord5, color = 'Group') +
+  geom_point(aes(),
+             size = 3) +
+  ggtitle('Beta Diversity of Fecal Samples in Week 8')
 
+# Comparison of the components of the top two axes across the 5 measurements
+ordTop = cbind(ord1$vectors[,1],ord2$vectors[,1],ord3$vectors[,1],ord4$vectors[,1],ord5$vectors[,1])
+colnames(ordTop) = c("Week 1", "Week 2", "Week 3", "Week 4", "Week 5")
 
+barplot(t(ordTop),
+        main="Differences in the Components of the Axis with First Largest Eigenvalue",
+        legend=colnames(ordTop),
+        beside=TRUE,
+        las=2)
 
+ordSecond = cbind(ord1$vectors[,2],ord2$vectors[,2],ord3$vectors[,2],ord4$vectors[,2],ord5$vectors[,2])
+colnames(ordSecond) = c("Week 1", "Week 2", "Week 3", "Week 4", "Week 5")
 
+barplot(t(ordSecond),
+        main="Differences in the Components of the Axis with Second Largest Eigenvalue",
+        legend=colnames(ordSecond),
+        beside=TRUE,
+        las=2,
+        args.legend = list(x = 'bottomright'))
 
+# Comparison of the components of the largest eigenvalue of the two separated groups of control and treatment in week 3
 
+# Work In Progress
+# ord3TopCT = cbind(ord3C$vectors[,1],ord3T$vectors[,1])
+# colnames(ord3TopCT) = c("Control", "Treatment")
+# 
+# barplot(t(ord3TopCT),
+#         main="Control vs Treatment PCoA, Vector with the Largest Eigenvalue, Week 3",
+#         legend=colnames(ord3TopCT),
+#         beside=TRUE,
+#         las=2,
+#         args.legend = list(x = 'bottomright'))
 
