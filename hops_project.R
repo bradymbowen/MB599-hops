@@ -80,14 +80,12 @@ pstest <- phyloseq(otu_table(test, taxa_are_rows = FALSE), ps@sam_data[-index_tr
 model_ridge <- glmnet(x = as.matrix(train), y = pstrain@sam_data$Group_treatment, family = 'binomial', alpha = 0)
 
 #Check the accuracy for the testing data
-```{r}
 pred_treatment <- predict(model_ridge, newx = data.matrix(test), s = 0) 
 classifications <- pred_treatment > 0
 
 print(paste("Accuracy on test set: ", sum(classifications == pstest@sam_data$Group_treatment)*100 / nsamples(pstest), "%"))                                 
                                  
 #Find optimum mtry
-```{r}
 set.seed(1)
 datatrain = data.frame(train)
 datatrain$sample_group = pstrain@sam_data$Group
