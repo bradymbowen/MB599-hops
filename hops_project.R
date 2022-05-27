@@ -59,8 +59,85 @@ ps_wk_1_2 <- ps %>% subset_samples(Week %in% c("1", "2"))
 
 
 
-# random forest
+                               
 
+# random forest_Agung
+#centered data mean
+otu_table(ps) <- otu_table(apply(ps@otu_table, 2, function(x) return( (x - mean(x)) / sd(x))), taxa_are_rows = FALSE)
+
+#create data partition
+
+set.seed(1)
+index_train <- createDataPartition(psfinal@sam_data$Group, p = 0.7)[[1]]
+train <- ps@otu_table[index_train, ]
+test <- ps@otu_table[-index_train, ]
+
+#spliting the phyloseq objects
+pstrain <- phyloseq(otu_table(train, taxa_are_rows = FALSE), ps@sam_data[index_train, ])
+pstest <- phyloseq(otu_table(test, taxa_are_rows = FALSE), ps@sam_data[-index_train, ])
+
+#Train model
+model_ridge <- glmnet(x = as.matrix(train), y = pstrain@sam_data$Group_treatment, family = 'binomial', alpha = 0)
+
+#Check the accuracy for the testing data
+```{r}
+pred_treatment <- predict(model_ridge, newx = data.matrix(test), s = 0) 
+classifications <- pred_treatment > 0
+
+print(paste("Accuracy on test set: ", sum(classifications == pstest@sam_data$Group_treatment)*100 / nsamples(pstest), "%"))                                 
+                                 
+#Find optimum mtry
+```{r}
+set.seed(1)
+datatrain = data.frame(train)
+datatrain$sample_group = pstrain@sam_data$Group
+control <- trainControl(method='repeatedcv', 
+                        number=3, 
+                        repeats=3,
+                        allowParallel = F)
+
+tunegrid <- expand.grid(.mtry=c(1:20)) 
+rf <- train(sample_group ~., 
+            data= datatrain, 
+            method='rf', 
+            metric='Accuracy', 
+            tuneGrid=tunegrid, 
+            trControl=control)
+print(rf)
+                                 
+#Testing model performance                                                            
+mtry_best = as.numeric(rf$bestTune)
+model = randomForest(train, y = as.factor(pstrain@sam_data$Group), mtry = mtry_best)
+
+#Performance on test set
+preds = predict(model, test)
+print(paste("Accuracy: ", sum(preds == as.factor(pstest@sam_data$Group)) / nsamples(pstest)))
+
+#Visualize on test dataset
+ord <- ordinate(pstest, method = "PCoA", distance = 'euclidean')
+pstest@sam_data$rf_predictions = predict(model, pstest@otu_table)
+plot_ordination(pstest, ord, 'samples', color = 'Group', shape = 'rf_predictions') + geom_point(size = 4)                                 
+                                 
+
+#obtain the important taxa
+model = randomForest(ps@otu_table, y = as.factor(ps@sam_data$Group), mtry = mtry_best)
+varImpPlot(model, type = 2)
+                                 
+#Important variables
+imp_list <- list()
+for(i in 1:50){
+  model = randomForest(ps@otu_table, y = as.factor(ps@sam_data$Group), mtry = mtry_best)
+  imp_list[i] <- varImp(model)
+}
+
+imp_df <- do.call(rbind.data.frame, imp_list)
+colnames(imp_df) <- colnames(x_train)
+colMeans(imp_df)
+barplot(sort(colMeans(imp_df)), horiz = T, las = 1, xlab = "Mean variable importance")
+
+##Ending_by_Agung#                                 
+                                 
+                               
 sample_names <- row.names(otu_table(ps))
 
 library(randomForest)
