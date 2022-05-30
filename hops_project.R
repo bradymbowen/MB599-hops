@@ -15,6 +15,7 @@ library(ANCOMBC)
 library(microbiome)
 library(ape)
 library(ggpubr)
+library(ggfortify)
 
 # Read in phyloseq object
 psdata <- readRDS("./mb599data.Rds")
@@ -493,6 +494,51 @@ barplot(t(ordSecond),
 
 
 
+
+
+############################# PCA Analysis ###################################
+
+
+# PCA analysis
+
+
+# Extract relevant sub-data (need data generated in PCoA)
+matrixwk1 <- cbind(sample_data(pswk1)[,7],otu_table(pswk1))
+matrixwk2 <- cbind(sample_data(pswk2)[,7],otu_table(pswk2))
+matrixwk3 <- cbind(sample_data(pswk3)[,7],otu_table(pswk3))
+matrixwk4 <- cbind(sample_data(pswk4)[,7],otu_table(pswk4))
+matrixwk5 <- cbind(sample_data(pswk5)[,7],otu_table(pswk5))
+
+
+# Calculate eigenvectors in respect to ASV's and X6PN
+pcawk1 <- prcomp(matrixwk1,scale = TRUE)
+pcawk2 <- prcomp(matrixwk2,scale = TRUE)
+pcawk3 <- prcomp(matrixwk3,scale = TRUE)
+pcawk4 <- prcomp(matrixwk4,scale = TRUE)
+pcawk5 <- prcomp(matrixwk5,scale = TRUE)
+
+
+# Calculate variance captured by each eigenvector
+var1=pcawk1$sdev^2/sum(pcawk1$sdev^2)
+var2=pcawk2$sdev^2/sum(pcawk2$sdev^2)
+var3=pcawk3$sdev^2/sum(pcawk3$sdev^2)
+var4=pcawk4$sdev^2/sum(pcawk4$sdev^2)
+var5=pcawk5$sdev^2/sum(pcawk5$sdev^2)
+
+# Plotting variance drop-off for each week (none are that good)
+qplot(c(1:27), var1)
+qplot(c(1:27), var2)
+qplot(c(1:27), var3)
+qplot(c(1:27), var4)
+qplot(c(1:27), var5)
+
+# Plotting top two eigenvector axes with data on control vs treatment
+# (maybe other axes would be able to separate these two groups more?)
+autoplot(pcawk1,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk2,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk3,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk4,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk5,data=sample_data(pswk1), colour = "Group")
 
 
 
