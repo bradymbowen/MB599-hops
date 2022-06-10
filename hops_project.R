@@ -11,10 +11,10 @@ library(dplyr)
 library(magrittr)
 library(Hmisc)
 library(randomForest)
-library(ANCOMBC)
 library(microbiome)
 library(ape)
 library(ggpubr)
+library(ggfortify)
 
 # Read in phyloseq object
 psdata <- readRDS("./mb599data.Rds")
@@ -172,33 +172,22 @@ ggplot(pcoadf, aes(x = Axis.1, y = DXN, color = Participant.ID)) +
 
 
 
-                               
-
-# random forest_Agung
-#centered data mean
-otu_table(ps) <- otu_table(apply(ps@otu_table, 2, function(x) return( (x - mean(x)) / sd(x))), taxa_are_rows = FALSE)
-
 #create data partition
 
 set.seed(1)
-index_train <- createDataPartition(psfinal@sam_data$Group, p = 0.7)[[1]]
-train <- ps@otu_table[index_train, ]
-test <- ps@otu_table[-index_train, ]
+index_train <- createDataPartition(psdata@sam_data$Group, p = 0.7)[[1]]
+train <- psdata@otu_table[index_train, ]
+test <- psdata@otu_table[-index_train, ]
 
 #spliting the phyloseq objects
-pstrain <- phyloseq(otu_table(train, taxa_are_rows = FALSE), ps@sam_data[index_train, ])
-pstest <- phyloseq(otu_table(test, taxa_are_rows = FALSE), ps@sam_data[-index_train, ])
+pstrain <- phyloseq(otu_table(train, taxa_are_rows = FALSE), psdata@sam_data[index_train, ])
+pstest <- phyloseq(otu_table(test, taxa_are_rows = FALSE), psdata@sam_data[-index_train, ])
 
-#Train model
-model_ridge <- glmnet(x = as.matrix(train), y = pstrain@sam_data$Group_treatment, family = 'binomial', alpha = 0)
 
-#Check the accuracy for the testing data
-pred_treatment <- predict(model_ridge, newx = data.matrix(test), s = 0) 
-classifications <- pred_treatment > 0
 
-print(paste("Accuracy on test set: ", sum(classifications == pstest@sam_data$Group_treatment)*100 / nsamples(pstest), "%"))                                 
-                                 
+
 #Find optimum mtry
+
 set.seed(1)
 datatrain = data.frame(train)
 datatrain$sample_group = pstrain@sam_data$Group
@@ -215,39 +204,53 @@ rf <- train(sample_group ~.,
             tuneGrid=tunegrid, 
             trControl=control)
 print(rf)
-                                 
-#Testing model performance                                                            
+
+
+
+#Testing model performance                               
+}
 mtry_best = as.numeric(rf$bestTune)
 model = randomForest(train, y = as.factor(pstrain@sam_data$Group), mtry = mtry_best)
 
-#Performance on test set
+model 
+
+
+#Performance on test set                              
+
 preds = predict(model, test)
 print(paste("Accuracy: ", sum(preds == as.factor(pstest@sam_data$Group)) / nsamples(pstest)))
 
 #Visualize on test dataset
 ord <- ordinate(pstest, method = "PCoA", distance = 'euclidean')
 pstest@sam_data$rf_predictions = predict(model, pstest@otu_table)
-plot_ordination(pstest, ord, 'samples', color = 'Group', shape = 'rf_predictions') + geom_point(size = 4)                                 
-                                 
+plot_ordination(pstest, ord, 'samples', color = 'Group', shape = 'rf_predictions') + geom_point(size = 4) +
+  ggtitle("Microbiome classification between groups based on random forest algoritm")
+
+
 
 #obtain the important taxa
-model = randomForest(ps@otu_table, y = as.factor(ps@sam_data$Group), mtry = mtry_best)
+
+par(mfrow=c(1,2))
+model = randomForest(pstest@otu_table, y = as.factor(pstest@sam_data$Group), mtry = mtry_best)
 varImpPlot(model, type = 2)
-                                 
+model = randomForest(pstest@otu_table, y = as.factor(pstest@sam_data$DXN), mtry = mtry_best)
+varImpPlot(model, type = 2)
+
+
+
+
 #Important variables
+
 imp_list <- list()
-for(i in 1:50){
-  model = randomForest(ps@otu_table, y = as.factor(ps@sam_data$Group), mtry = mtry_best)
+for(i in 1:20){
+  model = randomForest(pstest@otu_table, y = as.factor(pstest@sam_data$Group), mtry = mtry_best)
   imp_list[i] <- varImp(model)
 }
 
 imp_df <- do.call(rbind.data.frame, imp_list)
-colnames(imp_df) <- colnames(x_train)
+colnames(imp_df) <- colnames(train)
 colMeans(imp_df)
-barplot(sort(colMeans(imp_df)), horiz = T, las = 1, xlab = "Mean variable importance")
-
-##Ending_by_Agung#                                 
-                                 
+barplot(sort(colMeans(imp_df)), horiz = T, las = 1, xlab = "Mean variable taxa")          
                                
 
 
@@ -493,6 +496,51 @@ barplot(t(ordSecond),
 
 
 
+
+
+############################# PCA Analysis ###################################
+
+
+# PCA analysis
+
+
+# Extract relevant sub-data (need data generated in PCoA)
+matrixwk1 <- cbind(sample_data(pswk1)[,7],otu_table(pswk1))
+matrixwk2 <- cbind(sample_data(pswk2)[,7],otu_table(pswk2))
+matrixwk3 <- cbind(sample_data(pswk3)[,7],otu_table(pswk3))
+matrixwk4 <- cbind(sample_data(pswk4)[,7],otu_table(pswk4))
+matrixwk5 <- cbind(sample_data(pswk5)[,7],otu_table(pswk5))
+
+
+# Calculate eigenvectors in respect to ASV's and X6PN
+pcawk1 <- prcomp(matrixwk1,scale = TRUE)
+pcawk2 <- prcomp(matrixwk2,scale = TRUE)
+pcawk3 <- prcomp(matrixwk3,scale = TRUE)
+pcawk4 <- prcomp(matrixwk4,scale = TRUE)
+pcawk5 <- prcomp(matrixwk5,scale = TRUE)
+
+
+# Calculate variance captured by each eigenvector
+var1=pcawk1$sdev^2/sum(pcawk1$sdev^2)
+var2=pcawk2$sdev^2/sum(pcawk2$sdev^2)
+var3=pcawk3$sdev^2/sum(pcawk3$sdev^2)
+var4=pcawk4$sdev^2/sum(pcawk4$sdev^2)
+var5=pcawk5$sdev^2/sum(pcawk5$sdev^2)
+
+# Plotting variance drop-off for each week (none are that good)
+qplot(c(1:27), var1)
+qplot(c(1:27), var2)
+qplot(c(1:27), var3)
+qplot(c(1:27), var4)
+qplot(c(1:27), var5)
+
+# Plotting top two eigenvector axes with data on control vs treatment
+# (maybe other axes would be able to separate these two groups more?)
+autoplot(pcawk1,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk2,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk3,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk4,data=sample_data(pswk1), colour = "Group")
+autoplot(pcawk5,data=sample_data(pswk1), colour = "Group")
 
 
 
